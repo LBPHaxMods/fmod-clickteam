@@ -227,6 +227,31 @@ bool ReleaseInstance(const unsigned int& index)
 	return true;
 }
 
+bool StopEvent(const unsigned int& index, int stopMode)
+{
+    std::size_t i = static_cast<std::size_t>(index);
+
+    if (instanceList.count(i) == 1) 
+    {
+        // Stop the event
+        auto result = instanceList[i]->stop(static_cast<FMOD_STUDIO_STOP_MODE>(stopMode));
+        if (result != FMOD_OK) 
+        {
+            return false;
+        }
+
+        auto releaseResult = instanceList[i]->release();
+        if (releaseResult != FMOD_OK) 
+        {
+            return false;
+        }
+
+        instanceList.erase(i);
+    }
+
+    return true;
+}
+
 bool Set3DAttributes(const unsigned int& index, float posX, float posY, float posZ, float dirX,
 	float dirY, float dirZ, float oX, float oY, float oZ)
 {
@@ -318,6 +343,77 @@ bool PlayOneShot3D(const char* eventPath, float posX, float posY, float posZ,
 	}
 	else
 		return false;
+}
+
+int PlayEvent(const char* eventPath)
+{
+	FMOD::Studio::EventDescription* eventDescription = NULL;
+	auto result = studioSystem->getEvent(eventPath, &eventDescription);
+
+	if (result != FMOD_OK) 
+	{
+		return false;
+	}
+
+	if (eventDescription) 
+	{
+		FMOD::Studio::EventInstance* eventInstance = NULL;
+		auto result = eventDescription->createInstance(&eventInstance);
+
+		if (eventInstance) 
+		{
+			eventInstance->start();
+			instanceList.emplace(nInstances++, eventInstance);
+			return static_cast<int>(nInstances - 1);
+		}
+		else
+			return -1;
+	}
+	else
+		return -1;
+}
+
+int PlayEvent3D(const char* eventPath, float posX, float posY, float posZ,
+	float dirX, float dirY, float dirZ, float oX, float oY,
+	float oZ)
+{
+	FMOD::Studio::EventDescription* eventDescription = NULL;
+	auto result = studioSystem->getEvent(eventPath, &eventDescription);
+
+	if (result != FMOD_OK) {
+		return -1;
+	}
+
+	if (eventDescription) 
+	{
+		bool is3D;
+		eventDescription->is3D(&is3D);
+
+		if (!is3D) {
+			return -1;
+		}
+
+		FMOD::Studio::EventInstance* eventInstance = NULL;
+		result = eventDescription->createInstance(&eventInstance);
+
+		if (result != FMOD_OK) 
+		{
+			return -1;
+		}
+
+		Vector3 pos = { posX, posY, posZ };
+		Vector3 forward = { dirX, dirY, dirZ };
+		Vector3 up = { oX, oY, oZ };
+
+		FMOD_3D_ATTRIBUTES attributes; To3DAttributes(pos, forward, up, attributes);
+
+		eventInstance->set3DAttributes(&attributes);
+		eventInstance->start();
+		instanceList.emplace(nInstances++, eventInstance);
+		return static_cast<int>(nInstances - 1);
+	}
+	else
+		return -1;
 }
 
 bool SetInstanceVolume(const unsigned int& index, float volume)
@@ -510,6 +606,14 @@ bool SetGlobalParameterByName(const char* parameterName, float value,
 	return ERROR_CHECK(result);
 }
 
+bool SetGlobalParameterByNameWithLabel(const char* parameterName, const char* label,
+	bool ignoreSeekSpeed)
+{
+	auto result = studioSystem->setParameterByNameWithLabel(parameterName, label, ignoreSeekSpeed);
+
+	return ERROR_CHECK(result);
+}
+
 float GetParameterByName(const unsigned int& index, const char* parameterName)
 {
 	std::size_t i = (std::size_t)round(index);
@@ -542,6 +646,22 @@ bool SetParameterByName(const unsigned int& index, const char* parameterName, fl
 	}
 
 	auto result = instanceList[i]->setParameterByName(parameterName, value,
+		ignoreSeekSpeed);
+
+	return ERROR_CHECK(result);
+}
+
+bool SetParameterByNameWithLabel(const unsigned int& index, const char* parameterName, const char* label,
+	bool ignoreSeekSpeed)
+{
+	std::size_t i = (std::size_t)round(index);
+
+	if (instanceList.count(i) == 0) 
+	{
+		return false;
+	}
+
+	auto result = instanceList[i]->setParameterByNameWithLabel(parameterName, label,
 		ignoreSeekSpeed);
 
 	return ERROR_CHECK(result);
@@ -601,6 +721,24 @@ bool SetBusVolume(const unsigned int& index, float volume)
 	else
 		return 1;
 }
+
+bool StopAllEvents(const unsigned int& index, int stopMode)
+{
+	std::size_t i = (std::size_t)round(index);
+
+	if (busList.count(i) == 0) {
+		return false;
+	}
+
+	auto result = busList[i]->stopAllEvents(static_cast<FMOD_STUDIO_STOP_MODE>(stopMode));
+
+	if (result != FMOD_OK) {
+		return false;
+	}
+	else
+		return true;
+}
+
 
 int GetVCA(const char* vcaPath)
 {
@@ -735,6 +873,15 @@ static int love_fmod_stop_instance(lua_State* L)
 	return 1;
 }
 
+static int love_fmod_stop_event(lua_State* L)
+{
+	int index = static_cast<int>(lua_tointeger(L, 1));
+	int stopMode = static_cast<int>(lua_tointeger(L, 2));
+	bool result = StopEvent(index, stopMode);
+	lua_pushboolean(L, result);
+	return 1;
+}
+
 static int love_fmod_release_instance(lua_State* L)
 {
 	int index = static_cast<int>(lua_tointeger(L, 1));
@@ -784,6 +931,32 @@ static int love_fmod_playoneshot3d(lua_State* L)
 
 	bool result = PlayOneShot3D(input, posX, posY, posZ, dirX, dirY, dirZ, oX, oY, oZ);
 	lua_pushboolean(L, result);
+	return 1;
+}
+
+static int love_fmod_playevent(lua_State* L)
+{
+	const char* input = lua_tostring(L, 1);
+	int index = PlayEvent(input);
+	lua_pushinteger(L, index);
+	return 1;
+}
+
+static int love_fmod_playevent3d(lua_State* L)
+{
+	const char* input = lua_tostring(L, 1);
+	float posX = static_cast<float>(lua_tonumber(L, 2));
+	float posY = static_cast<float>(lua_tonumber(L, 3));
+	float posZ = static_cast<float>(lua_tonumber(L, 4));
+	float dirX = static_cast<float>(lua_tonumber(L, 5));
+	float dirY = static_cast<float>(lua_tonumber(L, 6));
+	float dirZ = static_cast<float>(lua_tonumber(L, 7));
+	float oX = static_cast<float>(lua_tonumber(L, 8));
+	float oY = static_cast<float>(lua_tonumber(L, 9));
+	float oZ = static_cast<float>(lua_tonumber(L, 10));
+
+	int index = PlayEvent3D(input, posX, posY, posZ, dirX, dirY, dirZ, oX, oY, oZ);
+	lua_pushinteger(L, index);
 	return 1;
 }
 
@@ -876,6 +1049,16 @@ static int love_fmod_set_global_parameter_by_name(lua_State* L)
 	return 1;
 }
 
+static int love_fmod_set_global_parameter_by_name_with_label(lua_State* L)
+{
+	const char* input = lua_tostring(L, 1);
+	const char* parameterValue = lua_tostring(L, 2);
+	bool ignoreSeekSpeed = lua_toboolean(L, 3);
+	bool result = SetGlobalParameterByNameWithLabel(input, parameterValue, ignoreSeekSpeed);
+	lua_pushboolean(L, result);
+	return 1;
+}
+
 static int love_fmod_get_parameter_by_name(lua_State* L)
 {
 	int index = static_cast<int>(lua_tointeger(L, 1));
@@ -893,6 +1076,17 @@ static int love_fmod_set_parameter_by_name(lua_State* L)
 	float parameterValue = static_cast<float>(lua_tonumber(L, 3));
 	bool ignoreSeekSpeed = lua_toboolean(L, 4);
 	bool result = SetParameterByName(index, input, parameterValue, ignoreSeekSpeed);
+	lua_pushboolean(L, result);
+	return 1;
+}
+
+static int love_fmod_set_parameter_by_name_with_label(lua_State* L)
+{
+	int index = static_cast<int>(lua_tointeger(L, 1));
+	const char* input = lua_tostring(L, 2);
+	const char* parameterValue = lua_tostring(L, 3);
+	bool ignoreSeekSpeed = lua_toboolean(L, 4);
+	bool result = SetParameterByNameWithLabel(index, input, parameterValue, ignoreSeekSpeed);
 	lua_pushboolean(L, result);
 	return 1;
 }
@@ -922,6 +1116,16 @@ static int love_fmod_set_bus_volume(lua_State* L)
 	lua_pushboolean(L, result);
 	return 1;
 }
+
+static int love_fmod_stop_bus_events(lua_State* L)
+{
+	int index = static_cast<int>(lua_tointeger(L, 1));
+	int stopMode = static_cast<int>(lua_tointeger(L, 2));
+	bool result = StopAllEvents(index, stopMode);
+	lua_pushboolean(L, result);
+	return 1;
+}
+
 
 static int love_fmod_get_vca(lua_State* L)
 {
@@ -960,9 +1164,12 @@ static const struct luaL_reg love_fmod_methods[] = {
 	{ "startInstance", love_fmod_start_instance },
 	{ "stopInstance", love_fmod_stop_instance },
 	{ "releaseInstance", love_fmod_release_instance },
+	{ "stopEvent", love_fmod_stop_event },
 	{ "set3DAttributes", love_fmod_set3d_attributes },
 	{ "playOneShot2D", love_fmod_playoneshot2d },
 	{ "playOneShot3D", love_fmod_playoneshot3d },
+	{ "playEvent", love_fmod_playevent },
+	{ "playEvent3D", love_fmod_playevent3d },
 	{ "setInstanceVolume", love_fmod_set_instance_volume },
 	{ "isPlaying", love_fmod_is_playing },
 	{ "setInstancePaused", love_fmod_set_instance_paused },
@@ -973,11 +1180,14 @@ static const struct luaL_reg love_fmod_methods[] = {
 	{ "getInstanceRms", love_fmod_get_instance_rms },
 	{ "getGlobalParameterByName", love_fmod_get_global_parameter_by_name },
 	{ "setGlobalParameterByName", love_fmod_set_global_parameter_by_name },
+	{ "setGlobalParameterByNameWithLabel", love_fmod_set_global_parameter_by_name_with_label },
 	{ "getParameterByName", love_fmod_get_parameter_by_name },
 	{ "setParameterByName", love_fmod_set_parameter_by_name },
+	{ "setParameterByNameWithLabel", love_fmod_set_parameter_by_name_with_label },
 	{ "getBus", love_fmod_get_bus },
 	{ "getBusVolume", love_fmod_get_bus_volume },
 	{ "setBusVolume", love_fmod_set_bus_volume },
+	{ "stopBusEvents", love_fmod_stop_bus_events },
 	{ "getVCA", love_fmod_get_vca },
 	{ "getVCAVolume", love_fmod_get_vca_volume },
 	{ "setVCAVolume", love_fmod_set_vca_volume },

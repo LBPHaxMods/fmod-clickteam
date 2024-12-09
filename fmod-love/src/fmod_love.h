@@ -49,11 +49,17 @@ bool StopInstance(const unsigned int& index, int stopMode);
 
 bool ReleaseInstance(const unsigned int& index);
 
+bool StopEvent(const unsigned int& index, int stopMode);
+
 bool Set3DAttributes(const unsigned int& index, float posX, float posY, float posZ, float dirX, float dirY, float dirZ, float oX, float oY, float oZ);
 
 bool PlayOneShot2D(const char* eventPath);
 
 bool PlayOneShot3D(const char* eventPath, float posX, float posY, float posZ, float dirX, float dirY, float dirZ, float oX, float oY, float oZ);
+
+int PlayEvent(const char* eventPath);
+
+int PlayEvent3D(const char* eventPath);
 
 bool SetInstanceVolume(const unsigned int& index, float volume);
 
@@ -78,6 +84,10 @@ bool SetGlobalParameterByName(const char* parameterName, float value, bool ignor
 float GetParameterByName(const unsigned int& index, const char* parameterName);
 
 bool SetParameterByName(const unsigned int& index, const char* parameterName, float value, bool ignoreSeekSpeed);
+
+
+bool SetParameterByNameWithLabel(const unsigned int& index, const char* parameterName, const char* label, bool ignoreSeekSpeed);
+
 
 int GetBus(const char* busPath);
 

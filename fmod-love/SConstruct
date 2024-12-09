@@ -1,4 +1,3 @@
-#!python
 import os
 import subprocess
 
@@ -10,9 +9,9 @@ env = DefaultEnvironment()
 opts.Add(EnumVariable('target', "Compilation target",
                       'debug', ['d', 'debug', 'r', 'release']))
 opts.Add(EnumVariable('platform', "Compilation platform",
-                      '', ['', 'windows', 'osx']))
+                      '', ['', 'windows', 'osx', 'android']))
 opts.Add(EnumVariable('p', "Compilation target, alias for 'platform'",
-                      '', ['', 'windows', 'osx']))
+                      '', ['', 'windows', 'osx', 'android']))
 opts.Add(BoolVariable('use_llvm', "Use the LLVM / Clang compiler", 'no'))
 opts.Add(PathVariable('fmod_api', 'The FMOD API path', '', PathVariable.PathAccept))
 opts.Add(PathVariable('target_path', 'The path where the lib is installed.', 'bin/'))
@@ -33,6 +32,7 @@ if env['platform'] == '':
 
 fmod_api_core_headers_path = env['fmod_api'] + "/api/core/inc/"
 fmod_api_studio_headers_path = env['fmod_api'] + "/api/studio/inc/"
+
 
 
 
@@ -68,10 +68,10 @@ elif env['platform'] == "windows":
 
     lua_headers_path = "lua/inc/"
     lua_library_path = "lua/lib/"
-    lua_lib = "lua51"
+    lua_lib = "C:/Program Files (x86)/Clickteam Fusion 2.5/Dev/Lib/xlua"
 
-    fmod_api_core_libs_path = env['fmod_api'] + "/api/core/lib/x64/"
-    fmod_api_studio_libs_path = env['fmod_api'] + "/api/studio/lib/x64/"
+    fmod_api_core_libs_path = env['fmod_api'] + "/api/core/lib/x86/"
+    fmod_api_studio_libs_path = env['fmod_api'] + "/api/studio/lib/x86/"
 
     fmodL_library = "fmodL_vc"
     fmod_library = "fmod_vc"
