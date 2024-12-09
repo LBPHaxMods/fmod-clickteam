@@ -1,7 +1,9 @@
-# fmod-love
-FMOD Studio API module for LÖVE
 
-This module adds support for the FMOD Studio API 2.01.01 (x64) in LÖVE (x64). Works with Windows and macOS for now. Pull requests are welcome.
+# fmod-love
+FMOD Studio API module for Clickteam Fusion 2.5
+This module adds support for the FMOD Studio API 2.03.04 (x86) in Clickteam Fusion 2.5 (x86) via the XLua extension. Works with Windows. Pull requests are welcome.
+
+Original LÖVE support this was based off was made by [Alessandro Famà](https://github.com/alessandrofama/fmod-love)
 
 Note: FMOD is not free, visit https://www.fmod.com/licensing for more info.
 
@@ -17,14 +19,14 @@ Note: FMOD is not free, visit https://www.fmod.com/licensing for more info.
 
 ## Installation
 
-Download the <b>fmodlove.dll/libfmodlove.dylib</b> file and add it to the directory containing the main.lua file. Download the FMOD Studio API (2.01.01 / x64) and also add <b>fmodstudio.dll/libfmodstudio.dylib </b>/and <b>fmod.dll/libfmod.dll</b> to your game folder. 
+Download the <b>fmodlove.dll/libfmodlove.dylib</b> file and add it to the directory containing the project .mfa file. Download the FMOD Studio API (2.03.04 / x86) and also add <b>fmodstudio.dll/libfmodstudio.dylib </b>/and <b>fmod.dll/libfmod.dll</b> to your game folder. 
 
 ## Building
 This project uses SCons. Navigate to the folder containing the SConstruct file and run:
 ```
 scons platform=windows target=release fmod_api="C:\Program Files (x86)\FMOD SoundSystem\FMOD Studio API Windows" 
 ```
-Replace platform (windows, osx) and the fmod_api path with the path of your FMOD API installation.
+Replace platform (windows only) and the fmod_api path with the path of your FMOD API installation.
 
 ## Usage
 
@@ -32,11 +34,7 @@ Replace platform (windows, osx) and the fmod_api path with the path of your FMOD
 ```
 fmod = require("fmodlove") // "libfmodlove" for macOS
 ```
-to load the library. Make sure to add:
-```
-package.cpath = package.cpath .. ";?.dylib"
-```
-for macOS.
+to load the library.
 
 ```
 fmod.init(outputType, realChannels, virtualChannels,
@@ -143,6 +141,19 @@ fmod.playOneShot3D(eventPath, posX, posY, posZ, dirX, dirY, dirZ, oX, oY, oZ)
 It will automatically call EventInstance::release after playing. `dirX` `dirY` `dirZ` is the forward vector, `oX` `oY` `oZ` the up vector.
 Returns `false` if failed, `true` if succeded.
 
+#### Playing a simple 2D event (no spatializer) without releasing the instance
+```
+fmod.PlayEvent(eventPath)
+```
+Returns an index value to the EventInstance. 
+
+#### Playing a simple 3D event without releasing the instance
+```
+fmod.PlayEvent3D(eventPath, posX, posY, posZ, dirX, dirY, dirZ, oX, oY, oZ)
+```
+
+Returns an index value to the EventInstance. 
+
 #### Setting the volume of an instance
 ```
 fmod.setInstanceVolume(index, volume)
@@ -204,6 +215,13 @@ fmod.setGlobalParameterByName(parameterName, value, ignoreSeekSpeed)
 ignoreSeekSpeed can be true or false.
 Returns `false` if failed, `true` if succeded.
 
+#### Set a global parameter value by name with label
+```
+fmod.SetGlobalParameterByNameWithLabel(parameterName, value, ignoreSeekSpeed)
+```
+ignoreSeekSpeed can be true or false.
+Returns `false` if failed, `true` if succeded.
+
 #### Get a local parameter value by name 
 ```
 fmod.getParameterByName(instanceIndex, parameterName)
@@ -214,6 +232,12 @@ Returns `-1` if failed.
 #### Set a local parameter value by name 
 ```
 fmod.setParameterByName(instanceIndex, parameterName, value, ignoreSeekSpeed)
+```
+Returns `false` if failed, `true` if succeded.
+
+#### Set a local parameter value by name with label
+```
+fmod.SetParameterByNameWithLabel(instanceIndex, parameterName, value, ignoreSeekSpeed)
 ```
 Returns `false` if failed, `true` if succeded.
 
@@ -236,6 +260,12 @@ Returns `-1` if failed.
 #### Set the bus volume
 ```
 fmod.setBusVolume(index, volume)
+```
+Returns `false` if failed, `true` if succeded.
+
+#### Stop all events on a bus
+```
+fmod.StopAllEvents(index, stopMode)
 ```
 Returns `false` if failed, `true` if succeded.
 
@@ -266,17 +296,15 @@ Returns `false` if failed, `true` if succeded.
 ### Initialising the Studio System and loading banks
 ```
 fmod = require("fmod_love")
-function love.load()
-    initResult = fmod.init(0, 32, 128, 1)
-    bankIndex1 = fmod.loadBank("Desktop/Master.bank", 0)
-    bankIndex2 = fmod.loadBank("Desktop/Master.strings.bank", 0)
-end
+initResult = fmod.init(0, 32, 128, 1)
+bankIndex1 = fmod.loadBank("Desktop/Master.bank", 0)
+bankIndex2 = fmod.loadBank("Desktop/Master.strings.bank", 0)
 ```
 
 ### Playing a 3d sound by manually managing instances
 ```
 instance = fmod.createInstance("event:/OneShot")
-fmod.set3DAttributes(instance, love.mouse.getX(), love.mouse.getY(), 0, 0,
+fmod.set3DAttributes(instance, X, Y, 0, 0,
                          -1, 0, 0, 0, 1)
 fmod.startInstance(instance)
 fmod.releaseInstance(instance)
