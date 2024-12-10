@@ -5,6 +5,7 @@ extern "C" {
 
 #include "fmod_studio.hpp"
 #include "fmod.hpp"
+#include "fmod_studio_common.h"
 #include <unordered_map>
 
 struct Vector3 {
@@ -93,3 +94,7 @@ int GetBus(const char* busPath);
 
 float GetBusVolume(const unsigned int& index);
 
+// Callback function declaration
+FMOD_RESULT F_CALL TimelineMarkerCallback(FMOD_STUDIO_EVENT_CALLBACK_TYPE type, 
+                                              FMOD_STUDIO_EVENTINSTANCE *eventInstance, 
+                                              void *parameters);

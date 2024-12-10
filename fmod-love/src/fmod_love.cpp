@@ -1,4 +1,5 @@
 #include "fmod_love.h"
+#include <string>
 
 FMOD::Studio::System* studioSystem = nullptr;
 FMOD::System* coreSystem = nullptr;
@@ -15,6 +16,9 @@ std::size_t nBusses = 0;
 std::unordered_map<std::size_t, FMOD::Studio::VCA*> vcaList;
 std::size_t nVCAs = 0;
 
+lua_State *g_L;
+
+std::string g_LuaCallbackName = "OnTimelineMarker"; 
 
 void To3DAttributes(Vector3 position, Vector3 forward, Vector3 up, FMOD_3D_ATTRIBUTES& outAttributes)
 {
@@ -1153,6 +1157,42 @@ static int love_fmod_set_vca_volume(lua_State* L)
 	return 1;
 }
 
+int Lua_RegisterTimelineCallback(lua_State *L) {
+	
+	int index = static_cast<int>(lua_tointeger(L, 1));
+    const char* luaCallbackName = lua_tostring(L, 2);   // Lua callback function name
+
+	std::size_t i = (std::size_t)round(index);
+
+	if (instanceList.count(i) == 0) 
+	{
+		return false;
+	}
+
+    g_L = L; // hacky workaround to store the lua state, maybes theres a better way to do this?
+    g_LuaCallbackName = luaCallbackName;
+
+    instanceList[i]->setCallback(TimelineMarkerCallback, FMOD_STUDIO_EVENT_CALLBACK_TIMELINE_MARKER);
+
+    return 0;
+}
+
+FMOD_RESULT F_CALL TimelineMarkerCallback(FMOD_STUDIO_EVENT_CALLBACK_TYPE type, 
+                                              FMOD_STUDIO_EVENTINSTANCE *event, 
+                                              void *parameters) {
+    if (type == FMOD_STUDIO_EVENT_CALLBACK_TIMELINE_MARKER) {
+        auto *marker = (FMOD_STUDIO_TIMELINE_MARKER_PROPERTIES *)parameters;
+
+        // Call Lua callback
+        lua_getglobal(g_L, g_LuaCallbackName.c_str()); // Get the Lua function
+        lua_pushstring(g_L, marker->name);  // Push marker name
+        lua_pushinteger(g_L, marker->position);  // Push marker position
+        lua_call(g_L, 2, 0);
+    }
+    return FMOD_OK;
+}
+
+
 static const struct luaL_reg love_fmod_methods[] = {
 	{ "init", love_fmod_init },
 	{ "update", love_fmod_update },
@@ -1191,6 +1231,7 @@ static const struct luaL_reg love_fmod_methods[] = {
 	{ "getVCA", love_fmod_get_vca },
 	{ "getVCAVolume", love_fmod_get_vca_volume },
 	{ "setVCAVolume", love_fmod_set_vca_volume },
+    {"RegisterTimelineCallback", Lua_RegisterTimelineCallback},
 	{ NULL, NULL }
 };
 
